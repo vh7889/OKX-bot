@@ -343,7 +343,10 @@ async def order_listener(websocket):
                                         if order_type is not None:  # 只取消程序创建的订单
                                             cancel_order_rest_api(order.get('ordId'), order.get('instId'))
                                 place_order("buy", buy_price, long_grid_size, "long")
-                                place_order("sell", close_price, long_grid_size, "long", is_close=True)
+                                if long_position > 0:  # 只有在有持仓时才委托平仓单
+                                    # 如果当前持仓小于网格大小，使用当前持仓量作为平仓数量
+                                    close_size = min(long_position, long_grid_size)
+                                    place_order("sell", close_price, close_size, "long", is_close=True)
                                 trigger_price = long_trigger_price
                                 grid_size = long_grid_size
                                 send_to_feishu(grid_size, grid_size, long_position, long_max_position, trigger_price, 1,
@@ -399,7 +402,10 @@ async def order_listener(websocket):
                                         if order_type is not None:  # 只取消程序创建的订单
                                             cancel_order_rest_api(order.get('ordId'), order.get('instId'))
                                 place_order("sell", close_price, short_grid_size, "short")
-                                place_order("buy", buy_price, short_grid_size, "short", is_close=True)
+                                if short_position > 0:  # 只有在有持仓时才委托平仓单
+                                    # 如果当前持仓小于网格大小，使用当前持仓量作为平仓数量
+                                    close_size = min(short_position, short_grid_size)
+                                    place_order("buy", buy_price, close_size, "short", is_close=True)
                                 trigger_price = short_trigger_price
                                 grid_size = short_grid_size
                                 send_to_feishu(grid_size, grid_size, short_position, short_max_position, trigger_price,
@@ -577,13 +583,19 @@ async def connect_websocket():
                     if enable_long_grid:
                         buy_price, close_long_price = calculate_grid_prices(long_trigger_price, "long")
                         buy_ordId = place_order("buy", buy_price, long_grid_size, "long")
-                        close_long_ordId = place_order("sell", close_long_price, long_grid_size, "long", is_close=True)
+                        # 只有在有持仓时才委托平仓单
+                        if long_position > 0:
+                            close_size = min(long_position, long_grid_size)
+                            close_long_ordId = place_order("sell", close_long_price, close_size, "long", is_close=True)
 
                     # 根据配置决定是否委托空单
                     if enable_short_grid:
                         short_buy_price, short_close_price = calculate_grid_prices(short_trigger_price, "short")
                         place_order("sell", short_close_price, short_grid_size, "short")
-                        place_order("buy", short_buy_price, short_grid_size, "short", is_close=True)
+                        # 只有在有持仓时才委托平仓单
+                        if short_position > 0:
+                            close_size = min(short_position, short_grid_size)
+                            place_order("buy", short_buy_price, close_size, "short", is_close=True)
 
                     is_order_placed = True
 
