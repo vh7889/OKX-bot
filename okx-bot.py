@@ -269,9 +269,16 @@ async def order_listener(websocket):
                     state = order_info.get("state")
                     side = order_info.get("side")
                     pos_side = order_info.get("posSide")
-                    filled_size = float(order_info.get("accFillSz", "0")) / 100
-                    order_price = float(order_info.get("px", "0"))
-                    ordId = order_info.get("ordId")
+                    # 安全地获取和转换数值
+                    try:
+                        filled_size = float(order_info.get("accFillSz") or "0") / 100
+                        order_price = float(order_info.get("px") or "0")
+                        ordId = order_info.get("ordId")
+                        if not ordId or filled_size == 0 or order_price == 0:
+                            continue
+                    except (ValueError, TypeError) as e:
+                        print(f"⚠️ 订单数据格式错误: {e}")
+                        continue
 
                     # 验证订单是否由程序创建
                     order_type, _, _ = get_order_info(ordId)
