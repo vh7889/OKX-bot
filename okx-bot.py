@@ -22,7 +22,7 @@ PASSPHRASE = ""
 feishu_token = ''  # 飞书TOKEN
 
 # ✅ 多单交易参数
-long_position = 0.002  # 当前多单持仓
+long_position = 0  # 当前多单持仓
 long_trigger_price = 85802.6  # 多单触发价格
 long_grid_percentage = 0.6 / 100  # 多单网格间距
 long_grid_size = 0.002  # 多单每次买入量
@@ -311,7 +311,10 @@ async def order_listener(websocket):
                                     orders = query_orders()
                                     for order in orders:
                                         if order.get('side') == 'sell' and order.get('posSide') == 'long':
-                                            cancel_order_rest_api(order.get('ordId'), order.get('instId'))
+                                            # 验证订单是否由程序创建
+                                            order_type, _, _ = get_order_info(order.get('ordId'))
+                                            if order_type is not None:  # 只取消程序创建的订单
+                                                cancel_order_rest_api(order.get('ordId'), order.get('instId'))
                                     place_order("sell", close_price, long_grid_size, "long", is_close=True)
                                     trigger_price = long_trigger_price
                                     grid_size = long_grid_size
@@ -364,7 +367,10 @@ async def order_listener(websocket):
                                     orders = query_orders()
                                     for order in orders:
                                         if order.get('side') == 'buy' and order.get('posSide') == 'short':
-                                            cancel_order_rest_api(order.get('ordId'), order.get('instId'))
+                                            # 验证订单是否由程序创建
+                                            order_type, _, _ = get_order_info(order.get('ordId'))
+                                            if order_type is not None:  # 只取消程序创建的订单
+                                                cancel_order_rest_api(order.get('ordId'), order.get('instId'))
                                     place_order("buy", buy_price, short_grid_size, "short", is_close=True)
                                     trigger_price = short_trigger_price
                                     grid_size = short_grid_size
