@@ -443,7 +443,39 @@ def get_account_balance():
         return 0
 
     except Exception as e:
-        print(f"❌ 获取账户信息发生错误: {str(e)}")
+        print(f"❌ 获取账户信息发生错误: {e}")
+        return 0
+
+
+def get_liquidation_price():
+    """获取预估爆仓价"""
+    endpoint = "/api/v5/account/positions"
+    url = BASE_URL + endpoint
+
+    timestamp = datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%S.%fZ')[:23] + 'Z'
+    sign = generate_signature(timestamp, "GET", endpoint)
+
+    headers = {
+        "OK-ACCESS-KEY": API_KEY,
+        "OK-ACCESS-SIGN": sign,
+        "OK-ACCESS-TIMESTAMP": timestamp,
+        "OK-ACCESS-PASSPHRASE": PASSPHRASE,
+        "Content-Type": "application/json",
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        response_data = response.json()
+
+        if response_data.get("code") == "0":
+            positions = response_data.get("data", [])
+            for position in positions:
+                if position.get("instId") == "BTC-USDT-SWAP":
+                    return float(position.get("liqPx", "0"))
+        return 0
+
+    except Exception as e:
+        print(f"❌ 获取预估爆仓价失败: {e}")
         return 0
 
 
@@ -456,8 +488,9 @@ def send_to_feishu(grid_size, take_profit_size, current_position, max_position, 
         "Content-Type": "application/json"
     }
 
-    # 获取账户总价值和对应方向的止盈次数
+    # 获取账户总价值、预估爆仓价和对应方向的止盈次数
     total_balance = get_account_balance()
+    liquidation_price = get_liquidation_price()
     display_take_profit_count = long_take_profit_count if pos_type == "多" else short_take_profit_count
 
     # Determine action and template color based on action_type
@@ -496,6 +529,7 @@ def send_to_feishu(grid_size, take_profit_size, current_position, max_position, 
                             f"**·挂卖单价格:** <font color='red'>**{close_long_price}**</font> **数量:** <font color='red'>**{take_profit_size}**</font>  \n"
                             f"**·当前持仓量:** <font color='orange'>**{current_position:.3f}**</font>  \n"
                             f"**·最大持仓量:** <font color='orange'>**{max_position}**</font>  \n"
+                            f"**·预估爆仓价:** <font color='red'>**{liquidation_price:.2f}**</font>  \n"
                             f"**·{pos_type}单止盈次数:** <font color='orange'>**{display_take_profit_count}**</font> **账户总价值:** <font color='orange'>**{total_balance:.2f} USDT**</font>  \n"
                             f"**·时间:** <font color='green'>**{current_time}**</font>"
                         )
